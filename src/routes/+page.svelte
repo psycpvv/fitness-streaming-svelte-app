@@ -49,32 +49,29 @@
   let poseLandmarker: PoseLandmarker | undefined = undefined
 
   // Enable the live webcam view and start detection.
-  function enableCam() {
+  async function enableCam() {
     if (!poseLandmarker) {
       console.log('Wait! poseLandmaker not loaded yet.')
       return
     }
     webcamRunning = !webcamRunning
     // Activate the webcam stream.
-    navigator.mediaDevices
-      .getUserMedia({
-        video: true,
-      })
-      .then(stream => {
-        const video = document.getElementById('webcam') as HTMLVideoElement
-        video.srcObject = stream
-        video.addEventListener('loadeddata', predictWebcam)
-      })
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 1280, height: 720 },
+    })
+    const video = document.getElementById('webcam') as HTMLVideoElement
+    video.srcObject = stream
+    video.addEventListener('loadeddata', predictWebcam)
+
     let lastVideoTime = -1
     const canvasElement = document.getElementById('output_canvas') as HTMLCanvasElement
     const canvasCtx = canvasElement.getContext('2d')!
     const drawingUtils = new DrawingUtils(canvasCtx)
     const videoHeight = `${window.innerHeight}px`
-    const videoWidth = `${(window.innerHeight / 360) * 480}px`
-    const video = document.getElementById('webcam') as HTMLVideoElement
+    const videoWidth = `${(window.innerHeight / 9) * 16}px`
     canvasElement.style.height = videoHeight
     canvasElement.height = window.innerHeight
-    canvasElement.width = (window.innerHeight / 360) * 480
+    canvasElement.width = (window.innerHeight / 9) * 16
     video.style.height = videoHeight
     canvasElement.style.width = videoWidth
     video.style.width = videoWidth
@@ -90,7 +87,6 @@
               landmark[DICT_FEATURES.right.shoulder],
               landmark[DICT_FEATURES.nose],
             )
-            console.log(thresholds.OFFSET_THRESH, offsetAngle)
 
             if (offsetAngle > thresholds.OFFSET_THRESH) {
               let displayInactivity = false
