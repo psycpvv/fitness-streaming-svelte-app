@@ -4,6 +4,12 @@
   import { PoseLandmarker, FilesetResolver, DrawingUtils } from '@mediapipe/tasks-vision'
   let webcamRunning = $state(false)
   let isPsLmReady = $state(false)
+  const FEEDBACK_ID_MAP: [string, number, string][] = [
+    ['BEND BACKWARDS', 215, 'rgb(0,153,255)'],
+    ['BEND FORWARD', 215, 'rgb(0,153,255)'],
+    ['KNEE FALLING OVER TOE', 170, 'rgb(255,80,80)'],
+    ['SQUAT TOO DEEP', 125, 'rgb(255,80,80)'],
+  ]
   const stateTracker = {
     stateSeq: [] as string[],
 
@@ -81,6 +87,8 @@
               landmark[DICT_FEATURES.right.shoulder],
               landmark[DICT_FEATURES.nose],
             )
+            console.log(thresholds.OFFSET_THRESH, offsetAngle)
+
             if (offsetAngle > thresholds.OFFSET_THRESH) {
               let displayInactivity = false
 
@@ -166,57 +174,52 @@
                 landmark[DICT_FEATURES.right.ankle].y - landmark[DICT_FEATURES.right.shoulder].y,
               )
 
-              let shldrCoord, elbowCoord, wristCoord, hipCoord, kneeCoord, ankleCoord, footCoord
-              let multiplier
-
-              if (distLShHip > distRShHip) {
-                shldrCoord = landmark[DICT_FEATURES.left.shoulder]
-                elbowCoord = landmark[DICT_FEATURES.left.elbow]
-                wristCoord = landmark[DICT_FEATURES.left.wrist]
-                hipCoord = landmark[DICT_FEATURES.left.hip]
-                kneeCoord = landmark[DICT_FEATURES.left.knee]
-                ankleCoord = landmark[DICT_FEATURES.left.ankle]
-                footCoord = landmark[DICT_FEATURES.left.ankle] // or DICT_FEATURES.left.foot if defined
-                multiplier = -1
-              } else {
-                shldrCoord = landmark[DICT_FEATURES.right.shoulder]
-                elbowCoord = landmark[DICT_FEATURES.right.elbow]
-                wristCoord = landmark[DICT_FEATURES.right.wrist]
-                hipCoord = landmark[DICT_FEATURES.right.hip]
-                kneeCoord = landmark[DICT_FEATURES.right.knee]
-                ankleCoord = landmark[DICT_FEATURES.right.ankle]
-                footCoord = landmark[DICT_FEATURES.right.ankle] // or DICT_FEATURES.right.foot if defined
-                multiplier = 1
-              }
+              const [
+                shldrCoord,
+                elbowCoord,
+                wristCoord,
+                hipCoord,
+                kneeCoord,
+                ankleCoord,
+                footCoord,
+                multiplier,
+              ] =
+                distLShHip > distRShHip
+                  ? [
+                      landmark[DICT_FEATURES.left.shoulder],
+                      landmark[DICT_FEATURES.left.elbow],
+                      landmark[DICT_FEATURES.left.wrist],
+                      landmark[DICT_FEATURES.left.hip],
+                      landmark[DICT_FEATURES.left.knee],
+                      landmark[DICT_FEATURES.left.ankle],
+                      landmark[DICT_FEATURES.left.ankle], // or DICT_FEATURES.left.foot if defined
+                      -1,
+                    ]
+                  : [
+                      landmark[DICT_FEATURES.right.shoulder],
+                      landmark[DICT_FEATURES.right.elbow],
+                      landmark[DICT_FEATURES.right.wrist],
+                      landmark[DICT_FEATURES.right.hip],
+                      landmark[DICT_FEATURES.right.knee],
+                      landmark[DICT_FEATURES.right.ankle],
+                      landmark[DICT_FEATURES.right.ankle], // or DICT_FEATURES.right.foot if defined
+                      1,
+                    ]
 
               // -------- Vertical Angle calculation and drawing --------
-
-              // Calculate hip vertical angle and draw arc and dotted line
               const hipVerticalAngle = findAngle(shldrCoord, { x: hipCoord.x, y: 0 }, hipCoord)
-              console.log(hipVerticalAngle)
-
-              // Calculate knee vertical angle and draw arc and dotted line
               const kneeVerticalAngle = findAngle(hipCoord, { x: kneeCoord.x, y: 0 }, kneeCoord)
-              console.log(kneeVerticalAngle)
-
-              // Calculate ankle vertical angle and draw arc and dotted line
               const ankleVerticalAngle = findAngle(kneeCoord, { x: ankleCoord.x, y: 0 }, ankleCoord)
-              console.log(ankleVerticalAngle)
 
               // --------- State tracking ---------
+              const currentState = getState(Math.round(kneeVerticalAngle))
+              stateTracker.currState = currentState
+
               /**
                * Updates the internal state sequence based on the provided input or event.
                * This function is typically used to manage and transition between different states
                * in a controlled sequence, ensuring the correct order of operations or animations.
-               *
-               * @private
-               * @function
-               * @param {...any} args - Arguments required to update the state sequence.
-               * @returns {void}
                */
-              const currentState = getState(Math.round(kneeVerticalAngle))
-              stateTracker.currState = currentState
-
               if (currentState === 's2') {
                 if (
                   (!stateTracker.stateSeq.includes('s3') &&
@@ -298,27 +301,35 @@
                 stateTracker.inactiveTime = 0
               }
 
-              // -------------------------------------------------------------------------------------------------------
-
-              let hipTextCoordX = hipCoord.x + 10
-              let kneeTextCoordX = kneeCoord.x + 15
-              let ankleTextCoordX = ankleCoord.x + 10
-
-              // If you have a flipFrame logic, implement it here if needed
+              //  -------------------------------------------------------------------------------------------------------
 
               if (stateTracker.stateSeq.includes('s3') || currentState === 's1') {
                 stateTracker.lowerHips = false
               }
-
-              // Increment feedback frame count for each feedback type
-              stateTracker.countFrames.forEach((_, idx) => {
-                if (stateTracker.displayText[idx]) {
-                  stateTracker.countFrames[idx] += 1
-                } else {
-                  stateTracker.countFrames[idx] = 0
-                }
+              // Increment countFrames for active feedbacks
+              stateTracker.displayText.forEach((val, idx) => {
+                if (val) stateTracker.countFrames[idx] += 1
               })
 
+              // Show feedback on canvas
+              if (stateTracker.lowerHips) {
+                canvasCtx.font = '18px Arial'
+                canvasCtx.fillStyle = 'black'
+                canvasCtx.fillRect(30, 80 - 18, 180, 25)
+                canvasCtx.fillStyle = 'rgb(255,255,0)'
+                canvasCtx.fillText('LOWER YOUR HIPS', 35, 80)
+              }
+
+              stateTracker.displayText.forEach((val, idx) => {
+                if (val) {
+                  const [text, y, bg] = FEEDBACK_ID_MAP[idx]
+                  canvasCtx.font = '18px Arial'
+                  canvasCtx.fillStyle = bg
+                  canvasCtx.fillRect(30, y - 18, 250, 25)
+                  canvasCtx.fillStyle = 'rgb(255,255,230)'
+                  canvasCtx.fillText(text, 35, y)
+                }
+              })
               // Optionally show feedback (implement your own showFeedback if needed)
               // showFeedback(stateTracker.displayText, FEEDBACK_ID_MAP, stateTracker.lowerHips)
 
@@ -328,9 +339,32 @@
                 stateTracker.inactiveTime = 0
               }
 
-              stateTracker.prevState = stateTracker.currState
+              canvasCtx.font = '20px Arial'
+              canvasCtx.fillStyle = 'rgb(144,238,144)'
+              canvasCtx.fillText(
+                String(Math.round(hipVerticalAngle)),
+                hipCoord.x * canvasElement.width - 10,
+                hipCoord.y * canvasElement.height,
+              )
+              canvasCtx.fillText(
+                String(Math.round(kneeVerticalAngle)),
+                kneeCoord.x * canvasElement.width - 10,
+                kneeCoord.y * canvasElement.height + 10,
+              )
+              canvasCtx.fillText(
+                String(Math.round(ankleVerticalAngle)),
+                ankleCoord.x * canvasElement.width - 10,
+                ankleCoord.y * canvasElement.height,
+              )
 
-              // You need to implement or import getState and updateStateSequence
+              // Reset feedback display after threshold frames
+              stateTracker.displayText = stateTracker.displayText.map((val, idx) =>
+                stateTracker.countFrames[idx] > thresholds.CNT_FRAME_THRESH ? false : val,
+              )
+              stateTracker.countFrames = stateTracker.countFrames.map((val, idx) =>
+                stateTracker.countFrames[idx] > thresholds.CNT_FRAME_THRESH ? 0 : val,
+              )
+              stateTracker.prevState = currentState
             }
             drawingUtils.drawLandmarks(landmark, {
               radius: data => DrawingUtils.lerp(data.from!.z, -0.15, 0.1, 5, 1),
