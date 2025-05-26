@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <script>
+      let counter = 0
+      window.requestAnimationFrame(() => {
+        counter++
+        console.log(counter)
+        const t0 = performance.now()
+
+        console.log('Animation frame requested')
+        const t1 = performance.now()
+        console.log(`Call to doSomething took ${t1 - t0} milliseconds.`)
+      })
+    </script>
+  </body>
+</html>
