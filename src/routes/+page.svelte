@@ -4,37 +4,37 @@
   import { PoseLandmarker, FilesetResolver, DrawingUtils } from '@mediapipe/tasks-vision'
   let webcamRunning = $state(false)
   let isPsLmReady = $state(false)
-  const state_tracker = {
-    state_seq: [] as string[],
+  const stateTracker = {
+    stateSeq: [] as string[],
 
-    start_inactive_time: 0,
-    start_inactive_time_front: 0,
-    INACTIVE_TIME: 0.0,
-    INACTIVE_TIME_FRONT: 0.0,
+    startInactiveTime: 0,
+    startInactiveTimeFront: 0,
+    inactiveTime: 0,
+    inactiveTimeFront: 0,
 
     // 0 --> Bend Backwards, 1 --> Bend Forward, 2 --> Keep shin straight, 3 --> Deep squat
-    DISPLAY_TEXT: [false, false, false, false],
-    COUNT_FRAMES: [0, 0, 0, 0],
+    displayText: [false, false, false, false],
+    countFrames: [0, 0, 0, 0],
 
-    LOWER_HIPS: false,
+    lowerHips: false,
 
-    INCORRECT_POSTURE: false,
+    incorrectPosture: false,
 
-    prev_state: null as string | null,
-    curr_state: null as string | null,
+    prevState: null as string | null,
+    currState: null as string | null,
 
-    SQUAT_COUNT: 0,
-    IMPROPER_SQUAT: 0,
+    squatCount: 0,
+    improperSquat: 0,
   }
 
-  // function showFeedback(c_frame, dict_maps, lower_hips_disp) {
-  //   if (lower_hips_disp) {
+  // function showFeedback(cFrame, dictMaps, lowerHipsDisp) {
+  //   if (lowerHipsDisp) {
   //     console.log('LOWER YOUR HIPS')
   //   }
 
-  //   c_frame.forEach((val, idx) => {
+  //   cFrame.forEach((val, idx) => {
   //     if (val) {
-  //       const [text, ,] = dict_maps[idx]
+  //       const [text, ,] = dictMaps[idx]
   //       console.log(text)
   //     }
   //   })
@@ -48,7 +48,6 @@
       return
     }
     webcamRunning = !webcamRunning
-
     // Activate the webcam stream.
     navigator.mediaDevices
       .getUserMedia({
@@ -66,11 +65,11 @@
     const videoHeight = '360px'
     const videoWidth = '480px'
     const video = document.getElementById('webcam') as HTMLVideoElement
+    canvasElement.style.height = videoHeight
+    video.style.height = videoHeight
+    canvasElement.style.width = videoWidth
+    video.style.width = videoWidth
     async function predictWebcam() {
-      canvasElement.style.height = videoHeight
-      video.style.height = videoHeight
-      canvasElement.style.width = videoWidth
-      video.style.width = videoWidth
       if (lastVideoTime !== video.currentTime) {
         lastVideoTime = video.currentTime
         poseLandmarker?.detectForVideo(video, performance.now(), result => {
@@ -83,17 +82,16 @@
               landmark[DICT_FEATURES.nose],
             )
             if (offsetAngle > thresholds.OFFSET_THRESH) {
-              let display_inactivity = false
+              let displayInactivity = false
 
-              const end_time = performance.now() / 1000
-              state_tracker.INACTIVE_TIME_FRONT +=
-                end_time - state_tracker.start_inactive_time_front
-              state_tracker.start_inactive_time_front = end_time
+              const endTime = performance.now() / 1000
+              stateTracker.inactiveTimeFront += endTime - stateTracker.startInactiveTimeFront
+              stateTracker.startInactiveTimeFront = endTime
 
-              if (state_tracker.INACTIVE_TIME_FRONT >= thresholds.INACTIVE_THRESH) {
-                state_tracker.SQUAT_COUNT = 0
-                state_tracker.IMPROPER_SQUAT = 0
-                display_inactivity = true
+              if (stateTracker.inactiveTimeFront >= thresholds.INACTIVE_THRESH) {
+                stateTracker.squatCount = 0
+                stateTracker.improperSquat = 0
+                displayInactivity = true
               }
 
               // Draw circles for nose, left shoulder, right shoulder
@@ -110,10 +108,10 @@
                 radius: 7,
               })
 
-              if (display_inactivity) {
+              if (displayInactivity) {
                 // Optionally play a sound or show a message
-                state_tracker.INACTIVE_TIME_FRONT = 0.0
-                state_tracker.start_inactive_time_front = performance.now() / 1000
+                stateTracker.inactiveTimeFront = 0
+                stateTracker.startInactiveTimeFront = performance.now() / 1000
               }
 
               // Draw correct/incorrect squat counts and camera alignment warning
@@ -122,7 +120,7 @@
               canvasCtx.fillRect(canvasElement.width * 0.68, 10, 180, 30)
               canvasCtx.fillStyle = 'rgb(255,255,230)'
               canvasCtx.fillText(
-                'CORRECT: ' + state_tracker.SQUAT_COUNT,
+                'CORRECT: ' + stateTracker.squatCount,
                 canvasElement.width * 0.68 + 10,
                 32,
               )
@@ -131,7 +129,7 @@
               canvasCtx.fillRect(canvasElement.width * 0.68, 60, 180, 30)
               canvasCtx.fillStyle = 'rgb(255,255,230)'
               canvasCtx.fillText(
-                'INCORRECT: ' + state_tracker.IMPROPER_SQUAT,
+                'INCORRECT: ' + stateTracker.improperSquat,
                 canvasElement.width * 0.68 + 10,
                 82,
               )
@@ -152,72 +150,58 @@
               )
 
               // Reset inactive times for side view
-              state_tracker.start_inactive_time = performance.now() / 1000
-              state_tracker.INACTIVE_TIME = 0.0
-              state_tracker.prev_state = null
-              state_tracker.curr_state = null
+              stateTracker.startInactiveTime = performance.now() / 1000
+              stateTracker.inactiveTime = 0
+              stateTracker.prevState = null
+              stateTracker.currState = null
               // Camera is aligned properly.
             } else {
-              state_tracker.INACTIVE_TIME_FRONT = 0.0
-              state_tracker.start_inactive_time_front = performance.now() / 1000
+              stateTracker.inactiveTimeFront = 0
+              stateTracker.startInactiveTimeFront = performance.now() / 1000
 
-              const dist_l_sh_hip = Math.abs(
+              const distLShHip = Math.abs(
                 landmark[DICT_FEATURES.left.ankle].y - landmark[DICT_FEATURES.left.shoulder].y,
               )
-              const dist_r_sh_hip = Math.abs(
+              const distRShHip = Math.abs(
                 landmark[DICT_FEATURES.right.ankle].y - landmark[DICT_FEATURES.right.shoulder].y,
               )
 
-              let shldr_coord,
-                elbow_coord,
-                wrist_coord,
-                hip_coord,
-                knee_coord,
-                ankle_coord,
-                foot_coord
+              let shldrCoord, elbowCoord, wristCoord, hipCoord, kneeCoord, ankleCoord, footCoord
               let multiplier
 
-              if (dist_l_sh_hip > dist_r_sh_hip) {
-                shldr_coord = landmark[DICT_FEATURES.left.shoulder]
-                elbow_coord = landmark[DICT_FEATURES.left.elbow]
-                wrist_coord = landmark[DICT_FEATURES.left.wrist]
-                hip_coord = landmark[DICT_FEATURES.left.hip]
-                knee_coord = landmark[DICT_FEATURES.left.knee]
-                ankle_coord = landmark[DICT_FEATURES.left.ankle]
-                foot_coord = landmark[DICT_FEATURES.left.ankle] // or DICT_FEATURES.left.foot if defined
+              if (distLShHip > distRShHip) {
+                shldrCoord = landmark[DICT_FEATURES.left.shoulder]
+                elbowCoord = landmark[DICT_FEATURES.left.elbow]
+                wristCoord = landmark[DICT_FEATURES.left.wrist]
+                hipCoord = landmark[DICT_FEATURES.left.hip]
+                kneeCoord = landmark[DICT_FEATURES.left.knee]
+                ankleCoord = landmark[DICT_FEATURES.left.ankle]
+                footCoord = landmark[DICT_FEATURES.left.ankle] // or DICT_FEATURES.left.foot if defined
                 multiplier = -1
               } else {
-                shldr_coord = landmark[DICT_FEATURES.right.shoulder]
-                elbow_coord = landmark[DICT_FEATURES.right.elbow]
-                wrist_coord = landmark[DICT_FEATURES.right.wrist]
-                hip_coord = landmark[DICT_FEATURES.right.hip]
-                knee_coord = landmark[DICT_FEATURES.right.knee]
-                ankle_coord = landmark[DICT_FEATURES.right.ankle]
-                foot_coord = landmark[DICT_FEATURES.right.ankle] // or DICT_FEATURES.right.foot if defined
+                shldrCoord = landmark[DICT_FEATURES.right.shoulder]
+                elbowCoord = landmark[DICT_FEATURES.right.elbow]
+                wristCoord = landmark[DICT_FEATURES.right.wrist]
+                hipCoord = landmark[DICT_FEATURES.right.hip]
+                kneeCoord = landmark[DICT_FEATURES.right.knee]
+                ankleCoord = landmark[DICT_FEATURES.right.ankle]
+                footCoord = landmark[DICT_FEATURES.right.ankle] // or DICT_FEATURES.right.foot if defined
                 multiplier = 1
               }
 
               // -------- Vertical Angle calculation and drawing --------
 
               // Calculate hip vertical angle and draw arc and dotted line
-              const hip_vertical_angle = findAngle(shldr_coord, { x: hip_coord.x, y: 0 }, hip_coord)
-              console.log(hip_vertical_angle)
+              const hipVerticalAngle = findAngle(shldrCoord, { x: hipCoord.x, y: 0 }, hipCoord)
+              console.log(hipVerticalAngle)
 
               // Calculate knee vertical angle and draw arc and dotted line
-              const knee_vertical_angle = findAngle(
-                hip_coord,
-                { x: knee_coord.x, y: 0 },
-                knee_coord,
-              )
-              console.log(knee_vertical_angle)
+              const kneeVerticalAngle = findAngle(hipCoord, { x: kneeCoord.x, y: 0 }, kneeCoord)
+              console.log(kneeVerticalAngle)
 
               // Calculate ankle vertical angle and draw arc and dotted line
-              const ankle_vertical_angle = findAngle(
-                knee_coord,
-                { x: ankle_coord.x, y: 0 },
-                ankle_coord,
-              )
-              console.log(ankle_vertical_angle)
+              const ankleVerticalAngle = findAngle(kneeCoord, { x: ankleCoord.x, y: 0 }, ankleCoord)
+              console.log(ankleVerticalAngle)
 
               // --------- State tracking ---------
               /**
@@ -230,121 +214,121 @@
                * @param {...any} args - Arguments required to update the state sequence.
                * @returns {void}
                */
-              const current_state = getState(Math.round(knee_vertical_angle))
-              state_tracker.curr_state = current_state
+              const currentState = getState(Math.round(kneeVerticalAngle))
+              stateTracker.currState = currentState
 
-              if (current_state === 's2') {
+              if (currentState === 's2') {
                 if (
-                  (!state_tracker.state_seq.includes('s3') &&
-                    state_tracker.state_seq.filter(s => s === 's2').length === 0) ||
-                  (state_tracker.state_seq.includes('s3') &&
-                    state_tracker.state_seq.filter(s => s === 's2').length === 1)
+                  (!stateTracker.stateSeq.includes('s3') &&
+                    stateTracker.stateSeq.filter(s => s === 's2').length === 0) ||
+                  (stateTracker.stateSeq.includes('s3') &&
+                    stateTracker.stateSeq.filter(s => s === 's2').length === 1)
                 ) {
-                  state_tracker.state_seq.push(current_state)
+                  stateTracker.stateSeq.push(currentState)
                 }
-              } else if (current_state === 's3') {
+              } else if (currentState === 's3') {
                 if (
-                  !state_tracker.state_seq.includes(current_state) &&
-                  state_tracker.state_seq.includes('s2')
+                  !stateTracker.stateSeq.includes(currentState) &&
+                  stateTracker.stateSeq.includes('s2')
                 ) {
-                  state_tracker.state_seq.push(current_state)
+                  stateTracker.stateSeq.push(currentState)
                 }
               }
 
-              if (current_state === 's1') {
-                if (state_tracker.state_seq.length === 3 && !state_tracker.INCORRECT_POSTURE) {
-                  state_tracker.SQUAT_COUNT += 1
-                  // Optionally play a sound: String(state_tracker.SQUAT_COUNT)
+              if (currentState === 's1') {
+                if (stateTracker.stateSeq.length === 3 && !stateTracker.incorrectPosture) {
+                  stateTracker.squatCount += 1
+                  // Optionally play a sound: String(stateTracker.squatCount)
                 } else if (
-                  state_tracker.state_seq.includes('s2') &&
-                  state_tracker.state_seq.length === 1
+                  stateTracker.stateSeq.includes('s2') &&
+                  stateTracker.stateSeq.length === 1
                 ) {
-                  state_tracker.IMPROPER_SQUAT += 1
+                  stateTracker.improperSquat += 1
                   // Optionally play a sound: 'incorrect'
-                } else if (state_tracker.INCORRECT_POSTURE) {
-                  state_tracker.IMPROPER_SQUAT += 1
+                } else if (stateTracker.incorrectPosture) {
+                  stateTracker.improperSquat += 1
                   // Optionally play a sound: 'incorrect'
                 }
 
-                state_tracker.state_seq = []
-                state_tracker.INCORRECT_POSTURE = false
+                stateTracker.stateSeq = []
+                stateTracker.incorrectPosture = false
               } else {
                 //  -------------------------------------- PERFORM FEEDBACK ACTIONS --------------------------------------
-                if (hip_vertical_angle > thresholds.HIP_THRESH[1]) {
-                  state_tracker.DISPLAY_TEXT[0] = true
+                if (hipVerticalAngle > thresholds.HIP_THRESH[1]) {
+                  stateTracker.displayText[0] = true
                 } else if (
-                  hip_vertical_angle < thresholds.HIP_THRESH[0] &&
-                  state_tracker.state_seq.filter(s => s === 's2').length === 1
+                  hipVerticalAngle < thresholds.HIP_THRESH[0] &&
+                  stateTracker.stateSeq.filter(s => s === 's2').length === 1
                 ) {
-                  state_tracker.DISPLAY_TEXT[1] = true
+                  stateTracker.displayText[1] = true
                 }
 
                 if (
-                  knee_vertical_angle > thresholds.KNEE_THRESH[0] &&
-                  knee_vertical_angle < thresholds.KNEE_THRESH[1] &&
-                  state_tracker.state_seq.filter(s => s === 's2').length === 1
+                  kneeVerticalAngle > thresholds.KNEE_THRESH[0] &&
+                  kneeVerticalAngle < thresholds.KNEE_THRESH[1] &&
+                  stateTracker.stateSeq.filter(s => s === 's2').length === 1
                 ) {
-                  state_tracker.LOWER_HIPS = true
-                } else if (knee_vertical_angle > thresholds.KNEE_THRESH[2]) {
-                  state_tracker.DISPLAY_TEXT[3] = true
-                  state_tracker.INCORRECT_POSTURE = true
+                  stateTracker.lowerHips = true
+                } else if (kneeVerticalAngle > thresholds.KNEE_THRESH[2]) {
+                  stateTracker.displayText[3] = true
+                  stateTracker.incorrectPosture = true
                 }
 
-                if (ankle_vertical_angle > thresholds.ANKLE_THRESH) {
-                  state_tracker.DISPLAY_TEXT[2] = true
-                  state_tracker.INCORRECT_POSTURE = true
+                if (ankleVerticalAngle > thresholds.ANKLE_THRESH) {
+                  stateTracker.displayText[2] = true
+                  stateTracker.incorrectPosture = true
                 }
               }
 
               // ----------------------------------- COMPUTE INACTIVITY ---------------------------------------------
-              let display_inactivity = false
+              let displayInactivity = false
 
-              if (state_tracker.curr_state === state_tracker.prev_state) {
-                const end_time = performance.now() / 1000
-                state_tracker.INACTIVE_TIME += end_time - state_tracker.start_inactive_time
-                state_tracker.start_inactive_time = end_time
+              if (stateTracker.currState === stateTracker.prevState) {
+                const endTime = performance.now() / 1000
+                stateTracker.inactiveTime += endTime - stateTracker.startInactiveTime
+                stateTracker.startInactiveTime = endTime
 
-                if (state_tracker.INACTIVE_TIME >= thresholds.INACTIVE_THRESH) {
-                  state_tracker.SQUAT_COUNT = 0
-                  state_tracker.IMPROPER_SQUAT = 0
-                  display_inactivity = true
+                if (stateTracker.inactiveTime >= thresholds.INACTIVE_THRESH) {
+                  stateTracker.squatCount = 0
+                  stateTracker.improperSquat = 0
+                  displayInactivity = true
                 }
               } else {
-                state_tracker.start_inactive_time = performance.now() / 1000
-                state_tracker.INACTIVE_TIME = 0.0
+                stateTracker.startInactiveTime = performance.now() / 1000
+                stateTracker.inactiveTime = 0
               }
 
               // -------------------------------------------------------------------------------------------------------
 
-              let hip_text_coord_x = hip_coord.x + 10
-              let knee_text_coord_x = knee_coord.x + 15
-              let ankle_text_coord_x = ankle_coord.x + 10
+              let hipTextCoordX = hipCoord.x + 10
+              let kneeTextCoordX = kneeCoord.x + 15
+              let ankleTextCoordX = ankleCoord.x + 10
 
-              // If you have a flip_frame logic, implement it here if needed
+              // If you have a flipFrame logic, implement it here if needed
 
-              if (state_tracker.state_seq.includes('s3') || current_state === 's1') {
-                state_tracker.LOWER_HIPS = false
+              if (stateTracker.stateSeq.includes('s3') || currentState === 's1') {
+                stateTracker.lowerHips = false
               }
 
               // Increment feedback frame count for each feedback type
-              state_tracker.COUNT_FRAMES.forEach((_, idx) => {
-                if (state_tracker.DISPLAY_TEXT[idx]) {
-                  state_tracker.COUNT_FRAMES[idx] += 1
+              stateTracker.countFrames.forEach((_, idx) => {
+                if (stateTracker.displayText[idx]) {
+                  stateTracker.countFrames[idx] += 1
                 } else {
-                  state_tracker.COUNT_FRAMES[idx] = 0
+                  stateTracker.countFrames[idx] = 0
                 }
               })
 
               // Optionally show feedback (implement your own showFeedback if needed)
-              // showFeedback(state_tracker.DISPLAY_TEXT, FEEDBACK_ID_MAP, state_tracker.LOWER_HIPS)
+              // showFeedback(stateTracker.displayText, FEEDBACK_ID_MAP, stateTracker.lowerHips)
 
-              if (display_inactivity) {
+              if (displayInactivity) {
                 // Optionally show a message or play a sound
-                state_tracker.start_inactive_time = performance.now() / 1000
-                state_tracker.INACTIVE_TIME = 0.0
+                stateTracker.startInactiveTime = performance.now() / 1000
+                stateTracker.inactiveTime = 0
               }
 
-              state_tracker.prev_state = state_tracker.curr_state
+              stateTracker.prevState = stateTracker.currState
 
               // You need to implement or import getState and updateStateSequence
             }
@@ -370,7 +354,7 @@
     // get everything needed to run.
     const createPoseLandmarker = async () => {
       const vision = await FilesetResolver.forVisionTasks(
-        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm',
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10/wasm',
       )
       poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
         baseOptions: {
