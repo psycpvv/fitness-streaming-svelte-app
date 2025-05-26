@@ -34,18 +34,6 @@
     improperSquat: 0,
   }
 
-  // function showFeedback(cFrame, dictMaps, lowerHipsDisp) {
-  //   if (lowerHipsDisp) {
-  //     console.log('LOWER YOUR HIPS')
-  //   }
-
-  //   cFrame.forEach((val, idx) => {
-  //     if (val) {
-  //       const [text, ,] = dictMaps[idx]
-  //       console.log(text)
-  //     }
-  //   })
-  // }
   let poseLandmarker: PoseLandmarker | undefined = undefined
 
   // Enable the live webcam view and start detection.
@@ -57,7 +45,7 @@
     webcamRunning = !webcamRunning
     // Activate the webcam stream.
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: 1280, height: 720 },
+      video: true,
     })
     const video = document.getElementById('webcam') as HTMLVideoElement
     video.srcObject = stream
@@ -68,10 +56,10 @@
     const canvasCtx = canvasElement.getContext('2d')!
     const drawingUtils = new DrawingUtils(canvasCtx)
     const videoHeight = `${window.innerHeight}px`
-    const videoWidth = `${(window.innerHeight / 9) * 16}px`
+    const videoWidth = `${(window.innerHeight / 3) * 4}px`
     canvasElement.style.height = videoHeight
     canvasElement.height = window.innerHeight
-    canvasElement.width = (window.innerHeight / 9) * 16
+    canvasElement.width = (window.innerHeight / 3) * 4
     video.style.height = videoHeight
     canvasElement.style.width = videoWidth
     video.style.width = videoWidth
