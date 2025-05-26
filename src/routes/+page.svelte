@@ -70,9 +70,11 @@
     const canvasCtx = canvasElement.getContext('2d')!
     const drawingUtils = new DrawingUtils(canvasCtx)
     const videoHeight = `${window.innerHeight}px`
-    const videoWidth = `${window.innerWidth}px`
+    const videoWidth = `${(window.innerHeight / 360) * 480}px`
     const video = document.getElementById('webcam') as HTMLVideoElement
     canvasElement.style.height = videoHeight
+    canvasElement.height = window.innerHeight
+    canvasElement.width = (window.innerHeight / 360) * 480
     video.style.height = videoHeight
     canvasElement.style.width = videoWidth
     video.style.width = videoWidth
@@ -358,6 +360,25 @@
                 ankleCoord.y * canvasElement.height,
               )
 
+              canvasCtx.font = '20px Arial'
+              canvasCtx.fillStyle = 'rgba(18,185,0,0.8)'
+              canvasCtx.fillRect(canvasElement.width * 0.68, 10, 180, 30)
+              canvasCtx.fillStyle = 'rgb(255,255,230)'
+              canvasCtx.fillText(
+                'CORRECT: ' + stateTracker.squatCount,
+                canvasElement.width * 0.68 + 10,
+                32,
+              )
+
+              canvasCtx.fillStyle = 'rgba(221,0,0,0.8)'
+              canvasCtx.fillRect(canvasElement.width * 0.68, 60, 180, 30)
+              canvasCtx.fillStyle = 'rgb(255,255,230)'
+              canvasCtx.fillText(
+                'INCORRECT: ' + stateTracker.improperSquat,
+                canvasElement.width * 0.68 + 10,
+                82,
+              )
+
               // Reset feedback display after threshold frames
               stateTracker.displayText = stateTracker.displayText.map((val, idx) =>
                 stateTracker.countFrames[idx] > thresholds.CNT_FRAME_THRESH ? false : val,
@@ -406,32 +427,19 @@
 </script>
 
 <section class={['', isPsLmReady || 'invisible']}>
-  <div id="liveView" class="videoView">
-    <Button
-      class={[
-        'fixed top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 transform',
-        webcamRunning && 'hidden',
-      ]}
-      onclick={enableCam}
-    >
-      {webcamRunning ? 'DISABLE' : 'ENABLE'} WEBCAM
-    </Button>
-    <div style="position: relative;">
-      <!-- svelte-ignore a11y_media_has_caption -->
-      <video
-        id="webcam"
-        style="width: 1280px; height: 720px; position: absolute;transform: rotateY(180deg); -webkit-transform: rotateY(180deg); -moz-transform: rotateY(180deg);"
-        autoplay
-        playsinline
-        class="clear-both block"
-      ></video>
-      <canvas
-        class="output_canvas"
-        id="output_canvas"
-        width="1280"
-        height="720"
-        style="position: absolute; left: 0px; top: 0px; transform: rotateY(180deg);-webkit-transform: rotateY(180deg);-moz-transform: rotateY(180deg);"
-      ></canvas>
-    </div>
+  <Button
+    class={[
+      'fixed top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 transform',
+      webcamRunning && 'hidden',
+    ]}
+    onclick={enableCam}
+  >
+    {webcamRunning ? 'DISABLE' : 'ENABLE'} WEBCAM
+  </Button>
+  <div class="relative mx-auto">
+    <!-- svelte-ignore a11y_media_has_caption -->
+    <video id="webcam" class="absolute left-1/2 -translate-x-1/2" autoplay playsinline></video>
+    <canvas id="output_canvas" width="1280" height="720" class="absolute left-1/2 -translate-x-1/2"
+    ></canvas>
   </div>
 </section>
