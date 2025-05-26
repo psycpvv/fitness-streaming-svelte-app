@@ -1,6 +1,7 @@
 <script lang="ts">
   import { DICT_FEATURES, thresholds } from '$lib/constants'
   import { findAngle, getState } from '$lib/utils'
+  import { Button } from '@/components/ui/button'
   import { PoseLandmarker, FilesetResolver, DrawingUtils } from '@mediapipe/tasks-vision'
   let webcamRunning = $state(false)
   let isPsLmReady = $state(false)
@@ -68,8 +69,8 @@
     const canvasElement = document.getElementById('output_canvas') as HTMLCanvasElement
     const canvasCtx = canvasElement.getContext('2d')!
     const drawingUtils = new DrawingUtils(canvasCtx)
-    const videoHeight = '360px'
-    const videoWidth = '480px'
+    const videoHeight = `${window.innerHeight}px`
+    const videoWidth = `${window.innerWidth}px`
     const video = document.getElementById('webcam') as HTMLVideoElement
     canvasElement.style.height = videoHeight
     video.style.height = videoHeight
@@ -404,25 +405,32 @@
   })
 </script>
 
-<section id="demos" class={[isPsLmReady || 'invisible']}>
+<section class={['', isPsLmReady || 'invisible']}>
   <div id="liveView" class="videoView">
-    <button id="webcamButton" class="mdc-button mdc-button--raised" onclick={enableCam}>
+    <Button
+      class={[
+        'fixed top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 transform',
+        webcamRunning && 'hidden',
+      ]}
+      onclick={enableCam}
+    >
       {webcamRunning ? 'DISABLE' : 'ENABLE'} WEBCAM
-    </button>
+    </Button>
     <div style="position: relative;">
       <!-- svelte-ignore a11y_media_has_caption -->
       <video
         id="webcam"
-        style="width: 1280px; height: 720px; position: absolute"
+        style="width: 1280px; height: 720px; position: absolute;transform: rotateY(180deg); -webkit-transform: rotateY(180deg); -moz-transform: rotateY(180deg);"
         autoplay
         playsinline
+        class="clear-both block"
       ></video>
       <canvas
         class="output_canvas"
         id="output_canvas"
         width="1280"
         height="720"
-        style="position: absolute; left: 0px; top: 0px;"
+        style="position: absolute; left: 0px; top: 0px; transform: rotateY(180deg);-webkit-transform: rotateY(180deg);-moz-transform: rotateY(180deg);"
       ></canvas>
     </div>
   </div>
